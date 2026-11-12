@@ -19,10 +19,11 @@ docs/shared-engine-plan.md
 
 ## 已提交
 
-- 106 原有 Cockpit 前端文件路径及外观，保留与原 `member_docker.py` / `admin_members.py` 约定的调用入口，但**这些旧入口现在没有在新仓库实现或接线**，页面并不具备完整的可运行后端。
+- 106 原有 Cockpit 前端布局与路径；成员侧状态、预置模板、列表、创建、启动、停止、日志、预置镜像拉取已连接新兼容层。**仅代码接线，未经过真实 Cockpit/VM 验证。**管理员端及 JupyterLab/终端/快照/校园网后端仍未接通，UI 暂时禁用未实现的成员操作。
 - `tools/shared_engine_broker.py`：实验性 root 受控 Unix Socket 服务器，SO_PEERCRED + 当前系统成员组/账号状态校验，模板镜像、容器/卷所有权、固定无特权创建参数；**不提供任意 Docker CLI/Socket 透传**。
 - `tools/shared_engine_client.py`：非特权的固定动作客户端。
-- `tools/test_shared_engine_broker.py`：仅模拟 Docker，测试越权拒绝、镜像/卷复用和删除不删数据。
+- `tools/member_docker.py`：保留原 106 前端 JSON 约定的 CPU 容器适配器，未实现功能安全拒绝。
+- `tools/test_shared_engine_broker.py` / `tools/test_shared_engine_shim.py`：仅模拟 Docker，覆盖越权拒绝、固定参数、卷保留和原 UI 兼容性。
 
 ## 架构原则
 
