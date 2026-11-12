@@ -2,7 +2,7 @@
 
 本仓库是从 [106-Docker](https://github.com/litianzhuang/106-Docker) 迁移 Cockpit 成员/管理员 UI，并参考 [HB-Docker](https://github.com/litianzhuang/HB-Docker) 的集中式 Docker 管理方式，研发**单台 Ubuntu 科研工作站的安全共享 Docker Engine**。
 
-**当前状态：只完成 UI 源码迁入、最小受限 broker/client 原型与模拟单测；尚未完成前端适配、JupyterLab、真实 Linux A/B、GPU、部署或备份恢复。不得在物理服务器部署。**
+**当前状态：已迁入 UI 并补上 CPU 容器的初步接口兼容层（状态/模板/列表/创建/启动/停止/日志/镜像拉取），且有 Broker 模拟授权测试。尚未在真实 Cockpit/VM 上验收；终端、JupyterLab、版本快照、管理员账号和校园网功能尚未接入。不得在物理服务器部署。**
 
 ## 结构（对齐 106-Docker）
 
