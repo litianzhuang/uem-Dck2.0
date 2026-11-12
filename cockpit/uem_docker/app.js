@@ -1,5 +1,9 @@
 "use strict";
 
+// Shared Engine prototype: keep original 106 UI while explicitly disabling
+// features whose server-side authorization/streaming is not yet ported.
+const SHARED_ENGINE_PREVIEW = true;
+
 const BACKEND = "/usr/local/libexec/uem/member_docker.py";
 const $ = id => document.getElementById(id);
 let healthy = false;
@@ -158,9 +162,9 @@ function renderCampus(state, updated, transport, present) {
   }
   $("campus-detail").textContent = detail + stale;
   $("campus-transport").hidden = transport !== "HTTP_PLAINTEXT";
-  $("campus-login").disabled = blocked || review || busy;
-  $("campus-user").disabled = blocked || review;
-  $("campus-password").disabled = blocked || review;
+  $("campus-login").disabled = SHARED_ENGINE_PREVIEW || blocked || review || busy;
+  $("campus-user").disabled = SHARED_ENGINE_PREVIEW || blocked || review;
+  $("campus-password").disabled = SHARED_ENGINE_PREVIEW || blocked || review;
 }
 
 async function refreshCampus() {
@@ -415,7 +419,7 @@ async function refreshMemberStorage() {
 
 function setBusy(value) {
   busy = value;
-  $("create").disabled = value || !healthy;
+  $("create").disabled = value || !healthy || !profiles.length;
   $("restore-button").disabled = value || !healthy || !snapshots.length;
   $("image-pull").disabled = value || !healthy;
   $("refresh").disabled = value;
@@ -700,6 +704,19 @@ function renderContainers(items) {
       card.append(more);
     }
     card.append(personalProjects);
+    // The broker does not yet support terminal streams, JupyterLab,
+    // snapshots, project file writes or workspace inspection. Keep layout
+    // intact without offering buttons that will inevitably fail.
+    if (SHARED_ENGINE_PREVIEW) {
+      const disabled = new Set(["进入终端", "打开 JupyterLab", "新建项目目录",
+        "检查 JupyterLab", "保存版本", "查看个人项目", "检查工作空间"]);
+      for (const control of card.querySelectorAll("button")) {
+        if (disabled.has(control.textContent)) {
+          control.disabled = true;
+          control.title = "共享 Docker 版本尚未接入此功能";
+        }
+      }
+    }
     root.append(card);
   }
 }
@@ -771,10 +788,10 @@ async function refreshAll(checkStatus = true) {
     const data = await request("status");
     if (data.status !== "PASS" || !data.preflight) throw new Error("Preflight failed");
     healthy = data.preflight.status === "PASS";
-    $("status").textContent = healthy ? "个人 Docker 已就绪" : "安全检查未通过";
+    $("status").textContent = healthy ? "共享 Docker 已就绪" : "安全检查未通过";
     $("status").className = "pill " + (healthy ? "good" : "fail");
     $("status-detail").textContent = healthy
-      ? "已确认当前账号的 Rootless Docker 前置条件。"
+      ? "当前账号已连接受控共享 Docker 服务；真实双用户隔离仍待 VM 验收。"
       : "当前用户 Docker 不符合安全前提；请联系管理员。";
     const checks = $("checks");
     checks.replaceChildren();
@@ -805,10 +822,12 @@ async function refreshAll(checkStatus = true) {
   const selector = $("profile");
   const selected = selector.value;
   selector.replaceChildren();
-  const custom = element("option", "自主选择镜像");
+  const custom = element("option", "自主选择镜像（待接入）");
+  custom.disabled = SHARED_ENGINE_PREVIEW;
   custom.value = "member-custom";
   selector.append(custom);
-  const customGpu = element("option", "自主选择镜像 · 请求 GPU（待验证）");
+  const customGpu = element("option", "自主 GPU 镜像（待接入）");
+  customGpu.disabled = SHARED_ENGINE_PREVIEW;
   customGpu.value = "member-gpu";
   selector.append(customGpu);
   for (const item of profiles) {
@@ -818,7 +837,7 @@ async function refreshAll(checkStatus = true) {
   }
   if (["member-custom", "member-gpu"].includes(selected) || profiles.some(x => x.id === selected)) selector.value = selected;
   $("profile-detail").textContent = catalog
-    ? "可选择模板或输入镜像引用；创建时不会自动下载。"
+    ? "共享镜像试运行：仅管理员预置模板可用，自选镜像和快照暂未开放。"
     : "模板列表不可用；仍可输入镜像引用。";
   const workspaceList = $("workspaces");
   workspaceList.replaceChildren();
@@ -855,7 +874,7 @@ async function reload() {
     healthy = false;
     $("status").textContent = "当前状态不可用";
     $("status").className = "pill fail";
-    tell("后端或模板不可用；检查 Rootless Docker 与管理员配置。", true);
+    tell("共享 Docker broker 或管理员模板不可用；请联系管理员检查。", true);
   } finally {
     setBusy(false);
   }
