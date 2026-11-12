@@ -1,0 +1,25 @@
+name: shared-engine prototype checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-and-policy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python and browser JS syntax
+        run: |
+          python3 -m compileall -q tools
+          node --check cockpit/uem_docker/app.js
+          node --check cockpit/uem_docker/admin.js
+          node --check cockpit/uem_docker/navigation.js
+          python3 -m json.tool cockpit/uem_docker/manifest.json >/dev/null
+          python3 -m json.tool examples/docker-images.json >/dev/null
+      - name: Broker policy tests with fake Docker (not VM or production acceptance)
+        run: python3 -m unittest discover -s tools -p 'test_shared_engine_*.py' -v
