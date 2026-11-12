@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>科研工作站 · 成员账户</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="../base1/cockpit.js"></script>
+  <script defer src="admin.js"></script>
+</head>
+<body class="admin">
+  <header class="appbar">
+    <div class="appbar-inner">
+      <div class="appbar-top">
+        <a class="brand" href="admin.html">
+          <span class="brand-mark">UEM</span>
+          <span class="brand-text">
+            <h1>成员账户管理</h1>
+            <small>仅具备 Cockpit 管理员授权的人员可以执行操作</small>
+          </span>
+        </a>
+        <div class="account">
+          <span id="admin-session">管理员身份由 Cockpit 校验</span>
+          <a class="ghost" href="index.html">返回个人环境</a>
+          <button type="button" id="admin-refresh" class="ghost">刷新账户</button>
+          <button type="button" id="admin-logout" class="ghost">退出登录</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="section-head">
+        <h2>管理员权限</h2>
+        <span id="admin-permission" class="pill pending" role="status" aria-live="polite">正在核实</span>
+      </div>
+      <p id="admin-message" role="status" aria-live="polite" class="muted">只有已获系统授权的管理员才能使用。</p>
+      <p class="muted">本页面管理本平台成员账户和受控共享项目目录；不授予成员管理员权限，不接触 Docker Socket，不删除个人科研数据。</p>
+    </section>
+
+    <div id="admin-area" hidden>
+      <nav class="subnav" aria-label="管理分区">
+        <button type="button" data-admin-tab="accounts" aria-current="page">成员账户</button>
+        <button type="button" data-admin-tab="projects">共享项目</button>
+        <button type="button" data-admin-tab="campus">校园网</button>
+        <button type="button" data-admin-tab="audit">审计日志</button>
+      </nav>
+
+      <div class="admin-panel" data-admin-panel="accounts">
+        <div class="columns">
+          <section>
+            <h2>创建成员账户</h2>
+            <form id="new-member-form">
+              <label for="new-member-name">Linux 账户名</label>
+              <input id="new-member-name" required pattern="[a-z][a-z0-9_-]{1,30}"
+                     maxlength="31" autocomplete="off" placeholder="例如 research_a">
+              <small>创建后密码仍锁定，管理员须单独设置安全登录凭据。系统会尝试配置 Rootless Docker 和 linger；运行与资源限制仍需验收。</small>
+              <div class="form-actions">
+                <button type="submit" id="admin-create" class="admin-button">创建普通成员</button>
+              </div>
+            </form>
+          </section>
+          <section>
+            <h2>账户停用原则</h2>
+            <p><strong>停用会尝试停止该成员的运行中容器和 Rootless Docker 服务并禁用 linger。</strong>未保存的训练进度可能丢失，操作前必须确认 checkpoint，并进行二次确认。</p>
+            <p class="muted">系统逐项报告账户锁定、会话、容器、服务、linger 和旧 Socket 状态；登录拒绝和其他授权路径尚需真实环境验收，结果为 PARTIAL 时必须人工核查。HOME、镜像、数据卷及 SSH 公钥保留。</p>
+          </section>
+        </div>
+
+        <section>
+          <div class="section-head">
+            <h2>平台管理的成员</h2>
+            <span id="admin-count" class="muted">—</span>
+          </div>
+          <p class="muted">状态来自本地账户库与 /etc/shadow 的非机密字段；口令仍锁定，需管理员单独登记凭据。平台管理员角色由 Cockpit/polkit 授权，网页不授予；可分配的角色为真实 Linux 项目组协作者。</p>
+          <div id="admin-list"></div>
+        </section>
+      </div>
+
+      <div class="admin-panel" data-admin-panel="projects" hidden>
+        <section>
+          <h2>创建共享项目目录</h2>
+          <form id="new-project-form">
+            <label for="new-project-name">项目名称</label>
+            <input id="new-project-name" required pattern="[a-z][a-z0-9-]{1,19}" maxlength="20" autocomplete="off" placeholder="例如 robot-lab">
+            <small>管理员须事先配置安全的项目目录入口，并创建并核对对应 Linux 组 uem-project-项目名的全部成员，包括以该组为主组的账户。组内成员对项目根目录有读写权限；本功能不会修改组成员。</small>
+            <div class="form-actions">
+              <button type="submit" id="admin-create-project" class="admin-button">创建共享项目</button>
+            </div>
+          </form>
+          <p class="muted">目录创建不等于已配置容器共享、成员授权撤销或备份；新文件能否被组内其他成员修改还取决于文件权限和 umask。</p>
+        </section>
+
+        <section>
+          <h2>查询项目组关系</h2>
+          <form id="project-membership-form">
+            <div class="form-grid">
+              <div class="form-col">
+                <label for="membership-project">项目名称</label>
+                <input id="membership-project" required pattern="[a-z][a-z0-9-]{1,19}" maxlength="20" autocomplete="off">
+              </div>
+              <div class="form-col">
+                <label for="membership-member">平台成员账户</label>
+                <input id="membership-member" required pattern="[a-z][a-z0-9_-]{1,30}" maxlength="31" autocomplete="off">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" id="inspect-membership" class="admin-button">查询组关系</button>
+              <button type="button" id="grant-membership" class="secondary admin-button">授权成员</button>
+              <button type="button" id="revoke-membership" class="danger">移除成员</button>
+            </div>
+          </form>
+          <p class="muted">操作项目组会影响该组可访问的所有位置，须先核查组用途和成员。授权允许成员按文件权限读写或删除共享数据。移除组成员不保证立即撤权：旧会话、进程、其他组或 ACL 仍可能保留访问。不会自动停止训练或删除数据。</p>
+        </section>
+      </div>
+
+      <div class="admin-panel" data-admin-panel="campus" hidden>
+        <section>
+          <div class="section-head">
+            <h2>校园网共享接入</h2>
+            <div class="inline-actions">
+              <span id="campus-admin-state" class="pill pending" role="status" aria-live="polite">正在读取</span>
+              <button type="button" id="campus-admin-refresh" class="secondary">刷新状态</button>
+            </div>
+          </div>
+          <p class="muted">整台工作站只有一个出口和一个校园网认证会话：任一名成员登录后全体共有，断开会影响所有人的下载与镜像拉取。此处不显示成员校园网账号与口令。</p>
+          <p id="campus-admin-detail" class="muted">尚未读取共享状态。</p>
+          <p id="campus-admin-message" class="feedback" role="status" aria-live="polite"></p>
+          <form id="campus-admin-form">
+            <div class="form-actions">
+              <button type="button" id="campus-admin-check" class="admin-button admin-action">检查外网连通性</button>
+            </div>
+            <label for="campus-admin-evidence">强制解锁依据（8–200 字）</label>
+            <input id="campus-admin-evidence" maxlength="200" autocomplete="off"
+                   placeholder="例如：已在门户账号页确认无在线会话">
+            <div class="form-actions">
+              <button type="button" id="campus-admin-recover" class="admin-button admin-action">强制解锁未证实会话</button>
+              <button type="button" id="campus-admin-logout" class="danger admin-action">注销全站校园网</button>
+            </div>
+          </form>
+          <p class="muted">强制解锁只用于旧会话无法证实结束时；代码无法证明门户会话已注销，结果会标记为未验证，请在门户侧核实后再依赖该状态。注销需要二次确认，执行后必须由管理员核实门户侧确实离线。</p>
+        </section>
+      </div>
+
+      <div class="admin-panel" data-admin-panel="audit" hidden>
+        <section>
+          <div class="section-head">
+            <h2>管理员操作审计</h2>
+            <button type="button" id="audit-refresh" class="secondary">刷新审计</button>
+          </div>
+          <p class="muted">只记录账户管理动作（时间、动作、操作者、目标 UID），不记录口令、token、终端内容或科研数据；syslog 仍为准。</p>
+          <ul id="audit-list" class="workspace-list" aria-live="polite"><li>尚未读取审计记录。</li></ul>
+        </section>
+      </div>
+    </div>
+
+    <footer>
+      <p>通过 Cockpit 管理权限授权，不由网页表单决定角色；账号管理的现场生效和会话撤销仍待验收。</p>
+    </footer>
+  </main>
+</body>
+</html>

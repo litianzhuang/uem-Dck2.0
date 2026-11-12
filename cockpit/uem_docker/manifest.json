@@ -1,0 +1,15 @@
+{
+  "version": 0,
+  "menu": {
+    "uem_containers": {
+      "label": "我的科研环境",
+      "order": 55,
+      "path": "index.html"
+    },
+    "uem_admin": {
+      "label": "成员账户管理",
+      "order": 82,
+      "path": "admin.html"
+    }
+  }
+}
