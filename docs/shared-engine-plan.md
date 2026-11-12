@@ -62,9 +62,10 @@ docs/shared-engine-plan.md
 
 ## 验收看板
 
-- [ ] 成员/管理员 UI：保留静态页面，尚未接入新后端（NOT_CONNECTED）
-- [ ] broker 授权与容器 CRUD：开发中（NOT_ACCEPTED）
-- [ ] 原前端业务适配：NOT_RUN
+- [x] 成员 UI 静态布局迁入；CPU 状态/模板/列表/创建/启动/停止/日志/拉取通过兼容层接线（IMPLEMENTED_SOURCE_ONLY；未验收）
+- [ ] 管理员 UI：仅静态页面，原账户管理与校园网业务尚未迁入（NOT_CONNECTED）
+- [x] broker 受控动作/UID/卷归属与相关模拟单测：IMPLEMENTED_SOURCE_ONLY，CI PASS（不代表实际安全验收）
+- [x] 原成员前端 CPU 业务 JSON 适配：IMPLEMENTED_SOURCE_ONLY；真正的 Cockpit 请求未执行
 - [ ] 两用户 CPU A/B 与共用镜像：NOT_RUN
 - [ ] GPU CDI：NOT_RUN
 - [ ] 浏览器 JupyterLab notebook/kernel/terminal + 撤销：NOT_RUN
