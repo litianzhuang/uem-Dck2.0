@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>科研环境 · UEM</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="../base1/cockpit.js"></script>
+  <script defer src="app.js"></script>
+  <script defer src="navigation.js"></script>
+</head>
+<body class="member">
+  <header class="appbar">
+    <div class="appbar-inner">
+      <div class="appbar-top">
+        <a class="brand" href="#overview">
+          <span class="brand-mark">UEM</span>
+          <span class="brand-text">
+            <h1>我的科研环境</h1>
+            <small>Docker 环境隔离与个人容器管理</small>
+          </span>
+        </a>
+        <nav class="appbar-tabs" aria-label="工作台导航">
+          <a href="#overview" data-nav="overview">总览</a>
+          <a href="#containers" data-nav="containers">我的容器</a>
+          <a href="#create" data-nav="create">创建环境</a>
+          <a href="#workspaces" data-nav="workspaces">工作空间</a>
+          <a href="#projects" data-nav="projects">共享项目</a>
+          <a href="#versions" data-nav="versions">环境版本</a>
+        </nav>
+        <div class="account">
+          <span id="session">正在识别登录账户</span>
+          <button type="button" id="refresh" class="ghost">刷新状态</button>
+          <button type="button" id="logout" class="ghost">退出登录</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="notice" role="note">
+      目标架构是每人一个 Linux 账号与各自的 Rootless Docker；账号创建时会尝试配置用户 daemon，实际运行和资源限制仍需验收。删除容器不会删除工作空间卷；请自行确认镜像来源。
+    </div>
+
+    <p id="message" class="feedback" role="status" aria-live="polite"></p>
+
+    <section class="page-view" data-page="overview" aria-labelledby="resources-title">
+      <div class="section-head">
+        <h2 id="resources-title">工作站资源</h2>
+        <span id="resources-updated" class="muted">正在读取…</span>
+      </div>
+      <ul id="resource-list" class="metric-grid" aria-live="polite"><li>正在读取…</li></ul>
+
+      <div class="panel-grid">
+        <div class="panel" id="gpu-panel">
+          <h3>GPU 实时状态</h3>
+          <p class="hint">nvidia-smi 读取；使用者按系统进程推测</p>
+          <div id="gpu-grid" class="gpu-grid" hidden></div>
+          <div id="gpu-owner-block" class="owner-block" hidden>
+            <h4>GPU 可能使用者（依据系统进程推测，仅供协商）</h4>
+            <ul id="gpu-owners" class="bar-chart" aria-live="polite"></ul>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>各用户可见占用</h3>
+          <p class="hint">可见进程合计，可能重复计算共享内存</p>
+          <div class="chart-block">
+            <h4>内存 · 可见进程 RSS</h4>
+            <ul id="memory-users" class="bar-chart" aria-live="polite"><li>正在读取各用户进程内存…</li></ul>
+          </div>
+          <div class="chart-block">
+            <h4>CPU · 占整机总算力</h4>
+            <ul id="cpu-users" class="bar-chart" aria-live="polite"><li>正在读取各用户 CPU 估算…</li></ul>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>个人存储</h3>
+          <p class="hint">Docker 数据根所在文件系统</p>
+          <div id="member-storage" class="chart-block" role="status">个人 Docker 存储文件系统：正在读取…</div>
+          <p class="muted">显示文件系统整体可用空间，不等于个人配额，也可能与根分区重复；其他位置的科研数据需另行检查。</p>
+        </div>
+      </div>
+      <details class="explain">
+        <summary>数据口径与限制</summary>
+        <p>主机整体状态，仅供协商参考；不会阻止任务启动或保证资源充足。</p>
+        <p>交换空间（swap）使用的是磁盘空间，速度通常慢于内存；此处是整机状态，不代表容器 swap 已被限制。</p>
+        <p>各用户进程内存是可见进程的 RSS 合计，可能重复计算共享内存；权限和进程变化也可能导致遗漏，不等于精确实际占用。</p>
+        <p>各用户 CPU 为最近一次短时采样、占整机所有 CPU 核心总算力的估算比例（约每两分钟刷新）；不可见进程和快速任务可能遗漏。</p>
+        <p>GPU 使用者为根据系统进程信息推测，仅供协商；运行时长是进程时长，不是任务剩余时间。不提供预计结束时间。</p>
+      </details>
+    </section>
+
+    <section class="page-view" data-page="overview" aria-labelledby="health-title">
+      <div class="section-head">
+        <h2 id="health-title">运行环境</h2>
+        <span id="status" class="pill pending" role="status" aria-live="polite">检查中</span>
+      </div>
+      <p id="status-detail" class="lead">正在检查当前用户 Docker 权限…</p>
+      <details class="explain">
+        <summary>查看详细安全检查</summary>
+        <ul id="checks"></ul>
+      </details>
+    </section>
+
+    <section class="page-view" data-page="overview" aria-labelledby="campus-title">
+      <div class="section-head">
+        <h2 id="campus-title">校园网接入</h2>
+        <span id="campus-state" class="pill pending" role="status" aria-live="polite">读取中</span>
+      </div>
+      <p id="campus-detail" class="lead">正在读取整台工作站共享的校园网状态…</p>
+      <form id="campus-form" class="campus-form" autocomplete="off">
+        <div class="field">
+          <label for="campus-user">校园网账号</label>
+          <input id="campus-user" type="text" maxlength="64" autocomplete="username" spellcheck="false" required>
+        </div>
+        <div class="field">
+          <label for="campus-password">校园网密码</label>
+          <input id="campus-password" type="password" maxlength="256" autocomplete="current-password" required>
+        </div>
+        <button id="campus-login" type="submit" disabled>连接校园网</button>
+      </form>
+      <p id="campus-transport" class="feedback error" hidden>该校门口户使用 HTTP 明文传输，密码会经过网络路径；请先由管理员与校网络部门确认 HTTPS 或可信链路，再输入凭据。</p>
+      <p id="campus-warning" class="feedback error" hidden></p>
+      <details class="explain">
+        <summary>共享出口说明</summary>
+        <p>整台服务器共用一个校园网出口，同一时间只有一个认证会话。任一成员连接成功后所有成员立即可用，其他人不能再重复登录；断开会影响全体成员的下载和镜像拉取。</p>
+      </details>
+    </section>
+
+    <section class="page-view" data-page="create" aria-labelledby="new-title">
+      <div class="section-head">
+        <h2 id="new-title">创建科研环境</h2>
+        <span class="muted">自主选择镜像或模板</span>
+      </div>
+      <form id="create-form">
+        <div class="form-grid">
+          <div class="form-col">
+            <h3>环境与镜像</h3>
+            <label for="environment-name">环境名称</label>
+            <input id="environment-name" type="text" name="name" required
+                   pattern="[a-z][a-z0-9-]{1,39}" maxlength="40"
+                   placeholder="例如 robot-v1" autocomplete="off">
+            <small>2–40 个小写字母、数字或连字符；创建新版本时使用新名称。</small>
+
+            <label for="profile">镜像来源</label>
+            <select id="profile" required>
+              <option value="">正在读取模板…</option>
+            </select>
+            <small id="profile-detail">模板由管理员固定镜像摘要和环境版本。</small>
+
+            <label for="custom-image">自选镜像引用</label>
+            <input id="custom-image" type="text" maxlength="255" placeholder="例如 pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime" autocomplete="off">
+            <small>使用可信来源；不支持在地址中填写账号密码。可选请求所有 GPU；资源共享且兼容性待验证。</small>
+
+            <label for="custom-memory">自选镜像容器的内存上限</label>
+            <select id="custom-memory">
+              <option value="2g">2 GiB</option><option value="4g">4 GiB</option>
+              <option value="8g" selected>8 GiB（默认）</option><option value="16g">16 GiB</option>
+              <option value="32g">32 GiB</option><option value="48g">48 GiB</option>
+            </select>
+            <small>仅用于自选镜像；超过上限时容器内程序可能被终止。该设置不是整机内存预留。</small>
+          </div>
+          <div class="form-col">
+            <h3>存储与创建</h3>
+            <label for="workspace">持久化工作空间</label>
+            <input id="workspace" name="workspace" required
+                   pattern="[a-z][a-z0-9-]{1,39}" maxlength="40"
+                   list="existing-workspaces" placeholder="例如 robot-project"
+                   autocomplete="off">
+            <datalist id="existing-workspaces"></datalist>
+            <small>选择已有工作空间可保留代码和模型文件；先停止使用该空间的旧容器。</small>
+            <div class="form-actions">
+              <button id="image-pull" type="button" class="secondary" disabled>下载所选镜像</button>
+              <button id="create" type="submit" disabled>创建环境（不自动启动）</button>
+            </div>
+            <pre id="image-pull-output" class="console" hidden tabindex="0"></pre>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="page-view" data-page="workspaces" aria-labelledby="data-title">
+      <div class="section-head">
+        <h2 id="data-title">个人工作空间</h2>
+        <span class="muted">删除容器不会清理工作空间</span>
+      </div>
+      <ul id="workspaces" class="workspace-list chips">
+        <li>等待加载…</li>
+      </ul>
+      <p class="muted">在 Rootless Docker 部署完成后，工作空间使用本人 daemon 的命名卷；删除容器不会清理它。重要数据仍需独立备份（Restic 备份/恢复目前为源码候选，真实恢复验收 NOT_RUN）。</p>
+    </section>
+
+    <section class="page-view" data-page="projects" aria-labelledby="projects-title">
+      <div class="section-head">
+        <h2 id="projects-title">可访问的共享项目</h2>
+        <button type="button" id="projects-refresh" class="secondary">刷新项目</button>
+      </div>
+      <p class="muted">显示管理员已在服务器配置、且当前 Linux 账号可读取的项目目录。具体读写权限由文件系统决定；管理员可创建项目目录并管理项目组成员。<strong>容器内共享挂载：未实现（NOT_IMPLEMENTED）</strong>，此处只列出宿主目录，不代表容器可访问。</p>
+      <ul id="project-list" class="workspace-list" aria-live="polite"><li>正在读取…</li></ul>
+    </section>
+
+    <section class="page-view" data-page="versions" aria-labelledby="versions-title">
+      <div class="section-head">
+        <h2 id="versions-title">我的环境版本</h2>
+        <span id="version-count" class="muted">—</span>
+      </div>
+      <p class="muted">停止容器后可保存当前 Python、PyTorch 等已安装依赖；快照不包含工作空间中的代码、模型和数据。</p>
+      <form id="restore-form" class="version-form">
+        <div class="field">
+          <label for="version-selector">已保存的软件环境</label>
+          <select id="version-selector" required>
+            <option value="">尚无版本快照</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="restore-name">恢复为新的容器名称</label>
+          <input id="restore-name" type="text" required maxlength="40"
+                 pattern="[a-z][a-z0-9-]{1,39}" placeholder="例如 robot-recovered"
+                 autocomplete="off">
+        </div>
+        <button id="restore-button" type="submit" disabled>从此版本创建新容器</button>
+      </form>
+      <p class="muted">恢复会新建容器，原容器不被覆盖；需要先停止正在使用对应工作空间的其他容器。</p>
+    </section>
+
+    <section class="page-view" data-page="containers" aria-labelledby="containers-title">
+      <div class="section-head">
+        <h2 id="containers-title">我的容器</h2>
+        <span id="count" class="muted">—</span>
+      </div>
+      <div id="containers" class="container-list">
+        <p class="muted">正在载入容器…</p>
+      </div>
+    </section>
+
+    <div class="page-view" data-page="containers">
+      <section id="logs-panel" class="panel" aria-labelledby="logs-title" hidden>
+        <div class="section-head">
+          <h2 id="logs-title">容器日志（最近 100 条）</h2>
+          <button type="button" id="close-logs" class="secondary">关闭</button>
+        </div>
+        <pre id="logs" tabindex="0" class="console"></pre>
+      </section>
+
+      <section id="terminal-panel" class="panel" aria-labelledby="terminal-title" hidden>
+        <div class="section-head">
+          <h2 id="terminal-title">本人容器终端</h2>
+          <button type="button" id="close-terminal" class="secondary">断开终端</button>
+        </div>
+        <p class="muted">终端中的软件安装仅影响当前容器的可写层和挂载的个人工作空间；命令执行需自行确认。</p>
+        <pre id="terminal-output" tabindex="0" class="console" aria-live="off"></pre>
+        <form id="terminal-form" class="terminal-form">
+          <label for="terminal-input">命令输入</label>
+          <input id="terminal-input" type="text" autocomplete="off" placeholder="输入命令后按回车发送">
+          <button id="terminal-send" type="submit">发送</button>
+        </form>
+      </section>
+    </div>
+
+    <footer>
+      <p>单机 Docker-first 研发平台 · 当前代码待真实登录、双用户权限和 NVIDIA GPU 验收，未授权之前不可作为生产系统开放。</p>
+    </footer>
+  </main>
+</body>
+</html>
