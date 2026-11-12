@@ -19,6 +19,7 @@ import stat
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -128,20 +129,23 @@ class DockerRunner:
         if not all(isinstance(x, str) for x in args):
             raise Refused("INVALID_DOCKER_ARGUMENT")
         env = {"PATH": "/usr/bin:/bin", "HOME": "/root", "LC_ALL": "C",
-               "DOCKER_CONFIG": "/root/.docker"}
+               "DOCKER_CONFIG": "/run/uem-shared-engine/docker-config"}
         try:
-            finished = subprocess.run(
-                ["/usr/bin/docker", "--host", ENGINE_HOST, *args], shell=False,
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                timeout=timeout, env=env, check=False,
-            )
+            with tempfile.SpooledTemporaryFile(max_size=MAX_RESPONSE, mode="w+b") as output:
+                finished = subprocess.run(
+                    ["/usr/bin/docker", "--host", ENGINE_HOST, *args], shell=False,
+                    stdout=output, stderr=subprocess.DEVNULL,
+                    timeout=timeout, env=env, check=False,
+                )
+                if finished.returncode != 0:
+                    raise Refused("DOCKER_FAILED")
+                output.seek(0, os.SEEK_END)
+                if output.tell() > MAX_RESPONSE:
+                    raise Refused("DOCKER_RESPONSE_TOO_LARGE")
+                output.seek(0)
+                return output.read().decode("utf-8", "replace")
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise Refused("DOCKER_UNAVAILABLE") from exc
-        if finished.returncode != 0:
-            raise Refused("DOCKER_FAILED")
-        if len(finished.stdout) > MAX_RESPONSE:
-            raise Refused("DOCKER_RESPONSE_TOO_LARGE")
-        return finished.stdout.decode("utf-8", "replace")
 
 
 class Engine:
@@ -366,6 +370,11 @@ def serve():
         raise SystemExit("runtime directory must be root-owned and not group writable")
     if os.path.lexists(SOCKET):
         raise SystemExit("broker socket already exists; inspect existing service, do not auto-remove")
+    config_dir = parent / "docker-config"
+    config_dir.mkdir(mode=0o700, exist_ok=True)
+    config_meta = config_dir.stat()
+    if config_meta.st_uid != 0 or config_meta.st_mode & 0o077:
+        raise SystemExit("broker Docker config path is unsafe")
     gid = grp.getgrnam(MEMBER_GROUP).gr_gid
     with Server(SOCKET, Engine()) as server:
         os.chown(SOCKET, 0, gid)
