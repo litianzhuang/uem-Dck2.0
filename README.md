@@ -27,7 +27,7 @@ docs/shared-engine-plan.md
 
 ## 架构原则
 
-同一台服务器的所有成员共用一个 Docker Engine 的镜像层；各自拥有独立容器可写层和命名数据卷。**首版只提供一个带 Python、Conda、JupyterLab 的基础工作区镜像，不预装 PyTorch/VLA/WAM 等算法依赖**；成员在自己的容器内安装升级依赖，不修改公用基础镜像。不同用户的 Conda 包、缓存、模型不会自动去重。停止/启动保留容器软件，删除容器则会丢失未保存在卷或快照里的 Conda 安装。完整约束见迁移计划。
+同一台服务器的所有成员共用一个 Docker Engine 的镜像层；各自拥有独立容器可写层和命名数据卷。成员在自己的容器内用 Conda/venv 安装和升级依赖，不修改管理员预置镜像。不同用户的 Conda 包、缓存、模型不会自动去重。
 
 普通成员**不能**访问 rootful Docker Socket、加入 docker 组或获得 sudo。服务端从 Unix Socket 的内核 peer credentials 推断真实 UID，每次操作都验证 owner 和允许的动作。完整风险、开发阶段、投入估计、可验收条件参见 [共享 Engine 开发计划](docs/shared-engine-plan.md)。
 
