@@ -1,0 +1,30 @@
+# Experimental only. Do NOT install on production until VM acceptance.
+[Unit]
+Description=UEM restricted shared Docker Engine broker (prototype)
+Requires=docker.service
+After=docker.service
+ConditionPathIsSocket=/var/run/docker.sock
+
+[Service]
+Type=simple
+User=root
+Group=root
+RuntimeDirectory=uem-shared-engine
+RuntimeDirectoryMode=0755
+ExecStart=/usr/bin/python3 /usr/local/libexec/uem/shared_engine_broker.py serve
+Restart=on-failure
+RestartSec=2s
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/run/uem-shared-engine
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target
